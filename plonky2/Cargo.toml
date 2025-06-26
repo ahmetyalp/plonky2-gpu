@@ -16,7 +16,7 @@ gate_testing = []
 parallel = ["hashbrown/rayon", "maybe_rayon/parallel"]
 std = ["anyhow/std", "rand/std"]
 timing = ["std"]
-cuda = []
+cuda = ["plonky2_cuda", "rustacuda", "rustacuda_core"]
 
 [dependencies]
 ahash = { version = "0.7.6", default-features = false, features = ["compile-time-rng"] } # NOTE: Be sure to keep this version the same as the dependency in `hashbrown`.
@@ -35,10 +35,9 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 static_assertions = { version = "1.1.0", default-features = false }
 unroll = { version = "0.1.5", default-features = false }
 
-[target.'cfg(feature = "cuda")'.dependencies]
-plonky2_cuda = {path = "../cuda"}
-rustacuda = "0.1.3"
-rustacuda_core = "0.1.2"
+plonky2_cuda = {path = "../cuda", optional = true}
+rustacuda = { version = "0.1.3", optional = true}
+rustacuda_core = { version = "0.1.2", optional = true}
 
 [dev-dependencies]
 criterion = { version = "0.4.0", default-features = false }

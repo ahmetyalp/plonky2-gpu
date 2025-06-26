@@ -124,6 +124,7 @@ pub struct CudaInvContext<F: RichField + Extendable<D>, C: GenericConfig<D, F = 
     pub ctx: Context,
 }
 
+#[cfg(not(feature = "cuda"))]
 #[repr(C)]
 pub struct CudaInvContext<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     pub _p : std::marker::PhantomData<F>,
