@@ -178,6 +178,7 @@ where
             &mut challenger,
             &fri_params,
             timing,
+            &mut None,
         )
     );
     let proof = StarkProof {

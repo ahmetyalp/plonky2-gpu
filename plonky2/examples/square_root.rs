@@ -78,7 +78,6 @@ fn main() -> Result<()> {
 
     let x_squared_actual = proof.public_inputs[0];
     println!("Field element (square): {x_squared_actual}");
-    println!("pub: {:?}, degree: {}", proof.public_inputs, data.);
     let res = data.verify(proof);
     println!("{:?}", res);
     res
