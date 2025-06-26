@@ -5,8 +5,6 @@ use std::sync::Arc;
 use itertools::Itertools;
 
 use maybe_rayon::*;
-use plonky2_cuda::DataSlice;
-use rustacuda::memory::DeviceSlice;
 use serde::{Deserialize, Serialize};
 
 use crate::hash::hash_types::RichField;

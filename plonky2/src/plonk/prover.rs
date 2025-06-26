@@ -1,12 +1,14 @@
 use alloc::vec::Vec;
 use alloc::{format, vec};
 use core::mem::swap;
+
+#[cfg(feature = "cuda")]
 use std::ffi::c_void;
+
 use std::fs::File;
 use std::io::Write;
 use std::mem::transmute;
 use std::process::exit;
-use std::thread::sleep;
 use std::time;
 
 use anyhow::{ensure, Result};
@@ -16,7 +18,7 @@ use crate::field::extension::Extendable;
 use crate::field::polynomial::{PolynomialCoeffs, PolynomialValues};
 use crate::field::types::Field;
 use crate::field::zero_poly_coset::ZeroPolyOnCoset;
-use crate::fri::oracle::{CudaInnerContext, PolynomialBatch};
+use crate::fri::oracle::PolynomialBatch;
 use crate::hash::hash_types::RichField;
 use crate::iop::challenger::Challenger;
 use crate::iop::generator::generate_partial_witness;
@@ -31,11 +33,19 @@ use crate::timed;
 use crate::util::partial_products::{partial_products_and_z_gx, quotient_chunk_products};
 use crate::util::timing::TimingTree;
 use crate::util::{ceil_div_usize, log2_ceil, transpose};
-use plonky2_cuda;
-use plonky2_cuda::DataSlice;
 use plonky2_util::log2_strict;
+
+#[cfg(feature = "cuda")]
+use crate::fri::oracle::CudaInnerContext;
+#[cfg(feature = "cuda")]
+use plonky2_cuda;
+#[cfg(feature = "cuda")]
+use plonky2_cuda::DataSlice;
+#[cfg(feature = "cuda")]
 use rustacuda::memory::DeviceSlice;
+#[cfg(feature = "cuda")]
 use rustacuda::prelude::CopyDestination;
+#[cfg(feature = "cuda")]
 use rustacuda::memory::AsyncCopyDestination;
 
 pub fn prove<F: RichField + Extendable<D>, C: GenericConfig<D, F=F>, const D: usize>(
@@ -77,7 +87,6 @@ pub fn prove<F: RichField + Extendable<D>, C: GenericConfig<D, F=F>, const D: us
     let wires_commitment = timed!(
         timing,
         "compute wires commitment",
-        // PolynomialBatch::from_values_with_gpu(
         PolynomialBatch::from_values(
             wires_values,
             config.fri_config.rate_bits,
@@ -88,7 +97,6 @@ pub fn prove<F: RichField + Extendable<D>, C: GenericConfig<D, F=F>, const D: us
             prover_data.fft_root_table.as_ref(),
         )
     );
-    // sleep(time::Duration::from_secs(10000));
     let mut challenger = Challenger::<F, C::Hasher>::new();
 
     // Observe the instance.
@@ -236,6 +244,7 @@ pub fn prove<F: RichField + Extendable<D>, C: GenericConfig<D, F=F>, const D: us
     })
 }
 
+#[cfg(feature = "cuda")]
 pub fn my_prove<F: RichField + Extendable<D>, C: GenericConfig<D, F=F>, const D: usize>(
     prover_data: &ProverOnlyCircuitData<F, C, D>,
     common_data: &CommonCircuitData<F, D>,
@@ -298,7 +307,6 @@ pub fn my_prove<F: RichField + Extendable<D>, C: GenericConfig<D, F=F>, const D:
             ctx,
         )
     );
-    // sleep(time::Duration::from_secs(10000));
     let mut challenger = Challenger::<F, C::Hasher>::new();
 
     let (betas, gammas) = timed!(

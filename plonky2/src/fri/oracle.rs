@@ -1,8 +1,12 @@
 use alloc::format;
 use alloc::vec::Vec;
-use std::alloc::{Allocator, AllocError, Layout};
 use std::cmp::{max, min};
+
+#[cfg(feature = "cuda")]
+use std::alloc::{Allocator, AllocError, Layout};
+#[cfg(feature = "cuda")]
 use std::ffi::c_void;
+
 use std::fs::File;
 use std::io::Write;
 use std::mem;
@@ -32,27 +36,38 @@ use crate::{field, timed};
 use crate::util::reducing::ReducingFactor;
 use crate::util::timing::TimingTree;
 use crate::util::{log2_strict, reverse_bits, reverse_index_bits_in_place, transpose};
-use plonky2_cuda;
 use plonky2_field::packable::Packable;
+
+#[cfg(feature = "cuda")]
+use plonky2_cuda;
+#[cfg(feature = "cuda")]
 use rustacuda::prelude::*;
-use rustacuda::memory::{AsyncCopyDestination, DeviceBuffer, DeviceSlice};
+#[cfg(feature = "cuda")]
+use rustacuda::memory::{AsyncCopyDestination, DeviceBuffer, DeviceSlice, cuda_malloc_locked, cuda_free_locked};
 
 /// Four (~64 bit) field elements gives ~128 bit security.
 pub const SALT_SIZE: usize = 4;
 
+#[cfg(feature = "cuda")]
 pub struct CudaInnerContext {
     pub stream: rustacuda::stream::Stream,
     pub stream2: rustacuda::stream::Stream,
 
 }
 
+#[cfg(feature = "cuda")]
 pub struct MyAllocator {}
 
+#[cfg(not(feature = "cuda"))]
+/// Alias Global allocator to MyAllocator
+pub type MyAllocator = alloc::alloc::Global;
+
+#[cfg(feature = "cuda")]
 unsafe impl Allocator for MyAllocator {
 
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         unsafe {
-            let raw_ptr = rustacuda::memory::cuda_malloc_locked::<u8>(layout.size()).unwrap();
+            let raw_ptr = cuda_malloc_locked::<u8>(layout.size()).unwrap();
             let ptr = NonNull::new(raw_ptr).ok_or(AllocError)?;
             Ok(NonNull::slice_from_raw_parts(ptr, layout.size()))
         }
@@ -64,7 +79,7 @@ unsafe impl Allocator for MyAllocator {
             // other conditions must be upheld by the caller
             unsafe {
                 // dealloc(ptr.as_ptr(), layout)
-                rustacuda::memory::cuda_free_locked(ptr.as_ptr()).unwrap();
+                cuda_free_locked(ptr.as_ptr()).unwrap();
             }
         }
 
@@ -72,8 +87,9 @@ unsafe impl Allocator for MyAllocator {
 
 }
 
+
+#[cfg(feature = "cuda")]
 #[repr(C)]
-// pub struct CudaInvContext<'a, F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>
 pub struct CudaInvContext<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>
 {
     pub inner: CudaInnerContext,
@@ -100,12 +116,18 @@ pub struct CudaInvContext<F: RichField + Extendable<D>, C: GenericConfig<D, F = 
     pub shift_powers_device: DeviceBuffer::<F>,
     pub shift_inv_powers_device: DeviceBuffer::<F>,
 
-    pub points_device: DeviceBuffer::<F>, 
-    pub z_h_on_coset_evals_device: DeviceBuffer::<F>, 
-    pub z_h_on_coset_inverses_device: DeviceBuffer::<F>, 
-    pub k_is_device: DeviceBuffer::<F>, 
+    pub points_device: DeviceBuffer::<F>,
+    pub z_h_on_coset_evals_device: DeviceBuffer::<F>,
+    pub z_h_on_coset_inverses_device: DeviceBuffer::<F>,
+    pub k_is_device: DeviceBuffer::<F>,
 
     pub ctx: Context,
+}
+
+#[repr(C)]
+pub struct CudaInvContext<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
+    pub _p : std::marker::PhantomData<F>,
+    pub _c : std::marker::PhantomData<C>,
 }
 
 /// Represents a FRI oracle, i.e. a batch of polynomials which have been Merklized.
@@ -276,6 +298,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>
     //     }
     // }
 
+    #[cfg(feature = "cuda")]
     pub fn from_values_with_gpu(
         values: &Vec<F>,
         poly_num: usize,
@@ -544,6 +567,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>
         }
     }
 
+    #[cfg(feature = "cuda")]
     pub fn from_coeffs_with_gpu(
         quotient_polys_offset: usize,
         values_num_per_poly: usize,

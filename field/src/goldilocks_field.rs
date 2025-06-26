@@ -5,8 +5,10 @@ use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAss
 
 use num::{BigUint, Integer};
 use plonky2_util::{assume, branch_hint};
-use rustacuda::DeviceCopy;
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "cuda")]
+use rustacuda::DeviceCopy;
 
 use crate::inversion::try_inverse_u64;
 use crate::types::{Field, Field64, PrimeField, PrimeField64, Sample};
@@ -21,7 +23,13 @@ const EPSILON: u64 = (1 << 32) - 1;
 ///   = 2**64 - 2**32 + 1
 ///   = 2**32 * (2**32 - 1) + 1
 /// ```
+#[cfg(feature = "cuda")]
 #[derive(Copy, Clone, Serialize, Deserialize, DeviceCopy)]
+#[repr(transparent)]
+pub struct GoldilocksField(pub u64);
+
+#[cfg(not(feature = "cuda"))]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct GoldilocksField(pub u64);
 

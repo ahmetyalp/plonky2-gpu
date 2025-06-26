@@ -1,8 +1,12 @@
 use alloc::vec::Vec;
-use std::intrinsics::transmute;
 use itertools::Itertools;
 
 use maybe_rayon::*;
+
+#[cfg(feature = "cuda")]
+use std::intrinsics::transmute;
+
+#[cfg(feature = "cuda")]
 use rustacuda::memory::{AsyncCopyDestination, DeviceSlice};
 
 use crate::field::extension::{flatten, unflatten, Extendable};
@@ -191,6 +195,7 @@ fn fri_prover_query_rounds<
             let initial_proof = initial_merkle_trees
                 .iter()
                 .map(|t| {
+                    #[cfg(feature = "cuda")]
                     if t.my_leaves_dev_offset >= 0 && ctx.is_some() {
                         let ctx = ctx.as_mut().unwrap();
                         let data = &mut (*ctx).cache_mem_device[t.my_leaves_dev_offset as usize..];
@@ -209,6 +214,9 @@ fn fri_prover_query_rounds<
                     } else {
                         (t.get(x_index).to_vec(), t.prove(x_index))
                     }
+
+                    #[cfg(not(feature = "cuda"))]
+                    (t.get(x_index).to_vec(), t.prove(x_index))
                 })
                 .collect::<Vec<_>>();
             initial_proof
