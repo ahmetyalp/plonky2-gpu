@@ -224,8 +224,8 @@ impl<F: Field> SimpleGenerator<F> for RandomValueGenerator {
     }
 
     fn run_once(&self, _witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        // let random_value = F::rand();
-        let random_value = F::from_canonical_u64(0x8838327483783);
+        let random_value = F::rand();
+        // let random_value = F::from_canonical_u64(0x8838327483783);
         out_buffer.set_target(self.target, random_value);
     }
 }
